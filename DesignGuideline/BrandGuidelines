@@ -1,0 +1,30 @@
+Colors
+Primary:
+#000000
+Accent:
+#9bd5b2
+Background:
+#000000
+Text Primary:
+#ffffff
+Link:
+#59217f
+Fonts
+Satoshi Light(body)
+HelveticaNeueLT Pro 45 Lt(body)
+HelveticaNeueLT Pro 65 Md(heading)
+Typography
+primary: Satoshi Light
+heading: HelveticaNeueLT Pro 65 Md
+h1: 32px
+h2: 16px
+body: 14px
+Spacing
+Base Unit:
+4
+Border Radius:
+8px
+Personality
+Tone: modern
+Energy: medium
+Audience: coffee enthusiasts and connoisseurs
