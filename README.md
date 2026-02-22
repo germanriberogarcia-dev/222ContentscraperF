@@ -15,6 +15,12 @@ Local-first FastAPI backend that ingests coffee-industry articles from configure
 4. Open dashboard screen:
    - `http://localhost:8000/dashboard`
 
+## Vercel Notes
+
+- Runtime storage must be under `/tmp` (project files are read-only at runtime).
+- `DB_PATH` defaults to `/tmp/coffee_news.db` automatically when running on Vercel.
+- Scheduler defaults to disabled on Vercel; you can override with `SCHEDULER_ENABLED=true` if needed.
+
 ## API
 
 - `GET /api/articles`

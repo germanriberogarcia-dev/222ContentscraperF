@@ -37,6 +37,11 @@ def _as_bool(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _is_vercel_runtime() -> bool:
+    # Vercel exposes VERCEL=1 (and related vars) at runtime.
+    return os.getenv("VERCEL") == "1" or bool(os.getenv("VERCEL_ENV"))
+
+
 @dataclass(frozen=True)
 class Settings:
     db_path: str
@@ -55,10 +60,15 @@ class Settings:
 
 
 def load_settings(env_path: str = DEFAULT_ENV_PATH) -> Settings:
-    _load_dotenv(env_path)
+    is_vercel = _is_vercel_runtime()
+    if not is_vercel:
+        _load_dotenv(env_path)
+
+    db_path = os.getenv("DB_PATH", "/tmp/coffee_news.db" if is_vercel else "data/coffee_news.db")
+    scheduler_default = not is_vercel
 
     settings = Settings(
-        db_path=os.getenv("DB_PATH", "data/coffee_news.db"),
+        db_path=db_path,
         user_agent=os.getenv(
             "USER_AGENT",
             "AntigravityCoffeeIngestionBot/1.0 (+https://antigravity.local)",
@@ -68,7 +78,7 @@ def load_settings(env_path: str = DEFAULT_ENV_PATH) -> Settings:
         ingestion_window_hours=_as_int("INGESTION_WINDOW_HOURS", 24),
         max_items_per_source=_as_int("MAX_ITEMS_PER_SOURCE", 50),
         article_meta_fetch_budget=_as_int("ARTICLE_META_FETCH_BUDGET", 8),
-        scheduler_enabled=_as_bool("SCHEDULER_ENABLED", True),
+        scheduler_enabled=_as_bool("SCHEDULER_ENABLED", scheduler_default),
         schedule_hour_utc=_as_int("SCHEDULE_HOUR_UTC", 0),
         schedule_minute_utc=_as_int("SCHEDULE_MINUTE_UTC", 15),
         app_host=os.getenv("APP_HOST", "0.0.0.0"),
