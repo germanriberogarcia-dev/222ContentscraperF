@@ -19,6 +19,7 @@ Local-first FastAPI backend that ingests coffee-industry articles from configure
 
 - Runtime storage must be under `/tmp` (project files are read-only at runtime).
 - `DB_PATH` defaults to `/tmp/coffee_news.db` automatically when running on Vercel.
+- If `DB_PATH` is set to a read-only location, startup automatically falls back to `/tmp/coffee_news.db`.
 - Scheduler defaults to disabled on Vercel; you can override with `SCHEDULER_ENABLED=true` if needed.
 
 ## API

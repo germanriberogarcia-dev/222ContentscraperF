@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import errno
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
 
 DEFAULT_ENV_PATH = ".env"
+FALLBACK_DB_PATH = "/tmp/coffee_news.db"
+logger = logging.getLogger(__name__)
 
 
 def _load_dotenv(path: str = DEFAULT_ENV_PATH) -> None:
@@ -42,6 +46,29 @@ def _is_vercel_runtime() -> bool:
     return os.getenv("VERCEL") == "1" or bool(os.getenv("VERCEL_ENV"))
 
 
+def _resolve_db_path(db_path: str, *, is_vercel: bool) -> str:
+    db_dir = Path(db_path).parent
+    if str(db_dir) in {"", "."}:
+        return db_path
+
+    try:
+        db_dir.mkdir(parents=True, exist_ok=True)
+        return db_path
+    except OSError as exc:
+        allow_fallback = is_vercel or exc.errno in {errno.EROFS, errno.EACCES}
+        if not allow_fallback or db_path == FALLBACK_DB_PATH:
+            raise
+
+        Path(FALLBACK_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+        logger.warning(
+            "db_path_unwritable configured=%s fallback=%s errno=%s",
+            db_path,
+            FALLBACK_DB_PATH,
+            exc.errno,
+        )
+        return FALLBACK_DB_PATH
+
+
 @dataclass(frozen=True)
 class Settings:
     db_path: str
@@ -64,7 +91,8 @@ def load_settings(env_path: str = DEFAULT_ENV_PATH) -> Settings:
     if not is_vercel:
         _load_dotenv(env_path)
 
-    db_path = os.getenv("DB_PATH", "/tmp/coffee_news.db" if is_vercel else "data/coffee_news.db")
+    db_path = os.getenv("DB_PATH", FALLBACK_DB_PATH if is_vercel else "data/coffee_news.db")
+    db_path = _resolve_db_path(db_path, is_vercel=is_vercel)
     scheduler_default = not is_vercel
 
     settings = Settings(
@@ -84,9 +112,5 @@ def load_settings(env_path: str = DEFAULT_ENV_PATH) -> Settings:
         app_host=os.getenv("APP_HOST", "0.0.0.0"),
         app_port=_as_int("APP_PORT", 8000),
     )
-
-    db_dir = Path(settings.db_path).parent
-    if str(db_dir) not in {"", "."}:
-        db_dir.mkdir(parents=True, exist_ok=True)
 
     return settings

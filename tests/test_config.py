@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import os
 import unittest
 from unittest.mock import patch
@@ -21,6 +22,20 @@ class SettingsRuntimeDefaultsTestCase(unittest.TestCase):
 
         self.assertEqual(settings.db_path, "/tmp/coffee_news.db")
         self.assertFalse(settings.scheduler_enabled)
+
+    def test_vercel_falls_back_to_tmp_when_db_path_is_read_only(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"VERCEL": "1", "DB_PATH": "data/coffee_news.db"},
+            clear=True,
+        ):
+            with patch(
+                "app.config.Path.mkdir",
+                side_effect=[OSError(errno.EROFS, "Read-only file system"), None],
+            ):
+                settings = load_settings(env_path=".env.missing")
+
+        self.assertEqual(settings.db_path, "/tmp/coffee_news.db")
 
 
 if __name__ == "__main__":
