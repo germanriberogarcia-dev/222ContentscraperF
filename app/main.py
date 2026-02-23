@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -36,6 +37,13 @@ if DASHBOARD_ASSETS_DIR.exists():
 @app.on_event("startup")
 def startup_event() -> None:
     settings: Settings = load_settings()
+    logger.info(
+        "startup_config db_path=%s scheduler_enabled=%s vercel=%s commit=%s",
+        settings.db_path,
+        settings.scheduler_enabled,
+        os.getenv("VERCEL", ""),
+        os.getenv("VERCEL_GIT_COMMIT_SHA", ""),
+    )
     adapters = build_source_adapters()
 
     db.bootstrap_database(

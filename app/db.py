@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import errno
 import json
+import logging
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -8,6 +10,9 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 from app.models import NormalizedArticle, SourceConfig
+
+FALLBACK_DB_PATH = "/tmp/coffee_news.db"
+logger = logging.getLogger(__name__)
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sources (
@@ -54,8 +59,43 @@ CREATE TABLE IF NOT EXISTS ingestion_runs (
 
 @contextmanager
 def connection(db_path: str):
-    Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    effective_db_path = db_path
+
+    try:
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        if exc.errno not in {errno.EROFS, errno.EACCES} or db_path == FALLBACK_DB_PATH:
+            raise
+
+        effective_db_path = FALLBACK_DB_PATH
+        Path(effective_db_path).parent.mkdir(parents=True, exist_ok=True)
+        logger.warning(
+            "db_connection_path_fallback configured=%s fallback=%s errno=%s",
+            db_path,
+            effective_db_path,
+            exc.errno,
+        )
+
+    try:
+        conn = sqlite3.connect(effective_db_path, check_same_thread=False)
+    except sqlite3.OperationalError as exc:
+        error_text = str(exc).lower()
+        can_retry_with_fallback = (
+            effective_db_path != FALLBACK_DB_PATH
+            and ("unable to open database file" in error_text or "readonly" in error_text)
+        )
+        if not can_retry_with_fallback:
+            raise
+
+        effective_db_path = FALLBACK_DB_PATH
+        Path(effective_db_path).parent.mkdir(parents=True, exist_ok=True)
+        logger.warning(
+            "db_connect_fallback configured=%s fallback=%s error=%s",
+            db_path,
+            effective_db_path,
+            error_text,
+        )
+        conn = sqlite3.connect(effective_db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     try:
