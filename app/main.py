@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import db
@@ -82,13 +82,8 @@ def shutdown_event() -> None:
 
 
 @app.get("/")
-def root() -> dict[str, str]:
-    return {
-        "service": "coffee-news-ingestion-api",
-        "status": "ok",
-        "dashboard": "/dashboard",
-        "docs": "/docs",
-    }
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/dashboard", status_code=307)
 
 
 @app.get("/dashboard", include_in_schema=False)
